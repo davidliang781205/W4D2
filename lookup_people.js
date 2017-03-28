@@ -1,37 +1,25 @@
-const pg = require('pg');
 const settings = require('./settings'); // settings.json
-
-const queryName = process.argv[2];
-
-const client = new pg.Client({
-  user: settings.user,
-  password: settings.password,
-  database: settings.database,
-  host: settings.hostname,
-  port: settings.port,
-  ssl: settings.ssl
+const knex = require('knex')({
+  client: 'pg',
+  connection: {
+    user: settings.user,
+    password: settings.password,
+    database: settings.database,
+    host: settings.hostname,
+    port: settings.port,
+    ssl: settings.ssl
+  },
+  searchPath: 'public'
 });
 
-function lookup(name) {
-  client.query('SELECT * FROM famous_people WHERE last_name = $1', [name], (err, result) => {
-    if (err) {
-      return console.error('error running query', err);
-    }
+const queryName = process.argv[2];
+const query = knex.select().from('famous_people').where('last_name', queryName);
 
-    console.log('Searching...');
-    console.log('Found ' + result.rowCount + ' person(s) by the name ' + '\'' + name + '\'');
-    result.rows.forEach((row) => {
-      console.log(`- ${row.id} : ${row.first_name} ${row.last_name}, born '${row.birthdate.toISOString().slice(0, 10)}'`);
-    });
-    client.end();
+query.then((result) => {
+  console.log('Searching...');
+  console.log('Found ' + result.length + ' person(s) by the name ' + '\'' + queryName + '\'');
+  result.forEach((row) => {
+    console.log(`- ${row.id} : ${row.first_name} ${row.last_name}, born '${row.birthdate.toISOString().slice(0, 10)}'`);
   });
-}
-
-
-client.connect((err) => {
-  if (err) {
-    return console.error('Connection Error', err);
-  }
-  lookup(queryName);
-
+  knex.destroy();
 });
